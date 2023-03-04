@@ -7,6 +7,7 @@ class Index:
     def __init__(self, table):
         # One index for each table. All our empty initially.
         self.indices = [None] *  table.num_columns
+        self.indices[table.key] = {}
         pass
 
     """
@@ -14,6 +15,8 @@ class Index:
     """
 
     def locate(self, column, value):
+        if self.indices[column] is not None:
+            return self.indices[column][value]
         pass
 
     """
@@ -21,6 +24,11 @@ class Index:
     """
 
     def locate_range(self, begin, end, column):
+        RIDs = []
+        if self.indices[column] is not None:
+            for i in range(begin, end):
+                RIDs = RIDs + self.indices[column][i]
+            return RIDs
         pass
 
     """
