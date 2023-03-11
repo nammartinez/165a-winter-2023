@@ -15,7 +15,7 @@ class Index:
     """
 
     def locate(self, column, value):
-        if self.indices[column] is not None:
+        if self.indices[column] is not None and self.table.page_directory[self.indices[column][value][0]].exists:
             return self.indices[column][value]
         pass
 
@@ -27,7 +27,8 @@ class Index:
         RIDs = []
         if self.indices[column] is not None:
             for i in range(begin, end):
-                RIDs = RIDs + self.indices[column][i]
+                if self.table.page_directory[self.indices[column][i][0]].exists:
+                    RIDs = RIDs + self.indices[column][i]
             return RIDs
         pass
 
