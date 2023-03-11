@@ -13,6 +13,10 @@ class Record:
         self.rid = rid
         self.key = key
         self.columns = columns
+        self.indirection = None
+        self.schema_encoding = None
+        self.timestamp = time()
+        self.exists = True
 
 class Table:
 

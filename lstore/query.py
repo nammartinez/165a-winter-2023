@@ -21,7 +21,11 @@ class Query:
     # Return False if record doesn't exist or is locked due to 2PL
     """
     def delete(self, primary_key):
-        pass
+        if primary_key in self.table.index.indices[self.table.key].keys():
+            if self.table.page_directory[self.table.index.indices[self.table.key][primary_key]].exists:
+                self.table.page_directory[self.table.index.indices[self.table.key][primary_key]].exists = False
+                return True
+        return False
     
     
     """
