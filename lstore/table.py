@@ -1,4 +1,5 @@
 from lstore.index import Index
+from lstore.page import Page
 from time import time
 
 INDIRECTION_COLUMN = 0
@@ -31,6 +32,12 @@ class Table:
         self.num_columns = num_columns
         self.page_directory = {}
         self.index = Index(self)
+        self.base_pages = [0]
+        self.tail_pages = [[1]] * num_columns
+        self.pages = []
+        self.next_rid = 0
+        for i in range(num_columns):
+            self.pages.append([Page(), Page()])
         pass
 
     def __merge(self):

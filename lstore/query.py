@@ -1,5 +1,6 @@
 from lstore.table import Table, Record
 from lstore.index import Index
+from lstore.page import Page
 
 
 class Query:
@@ -34,8 +35,23 @@ class Query:
     # Returns False if insert fails for whatever reason
     """
     def insert(self, *columns):
-        schema_encoding = '0' * self.table.num_columns
-        pass
+        if columns[self.table.key] in self.table.index.indices[self.table.key].keys():
+            return False
+        RID = self.table.next_rid
+        self.table.next_rid += 1
+        data_cols = []
+        if not self.table.pages[0][self.table.base_pages[-1]].has_capacity():
+            self.table.base_pages.append(len(self.table.pages[0]))
+            for i in self.table.pages:
+                i.append(Page())
+        for i in range(len(columns)):
+            data_cols.append((i, self.table.pages[i][self.table.base_pages[-1]]))
+            self.table.pages[i][self.table.base_pages[-1]].write(0)
+        base_record = Record(RID, columns[self.table.key], data_cols)
+        base_record.schema_encoding = '0' * self.table.num_columns
+        self.table.index.indices[self.table.key][columns[self.table.key]] = RID
+        self.table.page_directory[RID] = base_record
+        return self.update(columns[self.table.key], columns)
 
     
     """
@@ -71,7 +87,39 @@ class Query:
     # Returns False if no records exist with given key or if the target record cannot be accessed due to 2PL locking
     """
     def update(self, primary_key, *columns):
-        pass
+        if columns[self.table.key] in self.table.index.indices[self.table.key].keys() and (columns[self.table.key] != primary_key):
+            return False
+        RID = self.table.next_rid
+        self.table.next_rid += 1
+        data_cols = []
+        base_record = self.table.page_directory[self.table.index.indices[self.table.key][primary_key]]
+        schema_encoding = ''
+        for i in range(len(columns)):
+            if columns[i] == None:
+                schema_encoding += base_record.schema_encoding[i]
+                if base_record.schema_encoding[i] == '1':
+                    data_cols.append(self.table.page_directory[base_record.indirection].columns[i])
+                else:
+                    data_cols.append(base_record.columns[i])
+            else:
+                schema_encoding += '1'
+                if not self.table.pages[i][self.table.tail_pages[i][0]].has_capacity():
+                    self.table.tail_pages[i].pop(0)
+                    if len(self.table.tail_pages[i]) == 0:
+                        for i in self.table.tail_pages:
+                            i.append(len(self.table.pages[0]))
+                        for i in self.table.pages:
+                            i.append(Page())
+                data_cols.append((i, self.table.pages[i][self.table.tail_pages[i][0]]))
+                self.table.pages[i][self.table.tail_pages[i][0]].write(columns[i])
+        tail_record = Record(RID, columns[self.table.key], data_cols)
+        tail_record.schema_encoding = schema_encoding
+        self.table.page_directory[self.table.index.indices[self.table.key][primary_key]].schema_encoding = schema_encoding
+        self.table.page_directory[self.table.index.indices[self.table.key][primary_key]].indirection = RID
+        if columns[self.table.key] != None:
+            self.table.index.indices[self.table.key][columns[self.table.key]] = base_record.rid
+        self.table.page_directory[RID] = tail_record
+        return True
 
     
     """
