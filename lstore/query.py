@@ -78,9 +78,9 @@ class Query:
                         value = row.columns[i]
                         columns.append(int(value[1].data[value[0]*8,(value[0]*8)+7]))
             if row.schema_encoding[self.table.key] == '1':
-                data.append(Record(RID, self.table.page_directory[row.indirection].key, columns)
+                data.append(Record(RID, self.table.page_directory[row.indirection].key, columns))
             else:
-                data.append(Record(RID, row.key, columns)
+                data.append(Record(RID, row.key, columns))
         return data
 
     
@@ -111,9 +111,9 @@ class Query:
                     value = row.columns[i]
                     columns.append(int(value[1].data[value[0]*8,(value[0]*8)+7]))
             if row.schema_encoding[self.table.key] == '1':
-                data.append(Record(RID, self.table.page_directory[row.indirection].key, columns)
+                data.append(Record(RID, self.table.page_directory[row.indirection].key, columns))
             else:
-                data.append(Record(RID, row.key, columns)
+                data.append(Record(RID, row.key, columns))
         return data
 
     
@@ -167,7 +167,19 @@ class Query:
     # Returns False if no record exists in the given range
     """
     def sum(self, start_range, end_range, aggregate_column_index):
-        pass
+        RIDs = self.table.index.locate(search_key_index, search_key)
+        if len(RIDs) == 0:
+            return False
+        s = 0
+        for RID in RIDs:
+            row = self.table.page_directory[RID]
+            if row.schema_encoding[aggregate_column_index] == '1':
+                value = self.table.page_directory[row.indirection].columns[aggregate_column_index]
+                s += int(value[1].data[value[0]*8,(value[0]*8)+7])
+            else:
+                value = row.columns[aggregate_column_index]
+                s += int(value[1].data[value[0]*8,(value[0]*8)+7])
+        return s
 
     
     """
@@ -180,7 +192,21 @@ class Query:
     # Returns False if no record exists in the given range
     """
     def sum_version(self, start_range, end_range, aggregate_column_index, relative_version):
-        pass
+        RIDs = self.table.index.locate(search_key_index, search_key)
+        if len(RIDs) == 0:
+            return False
+        s = 0
+        for RID in RIDs:
+            base_row = self.table.page_directory[RID]
+            row = self.table.page_directory[base_row.indirection]
+            for i in range(relative_version):
+                if row.indirection == None:
+                    row = base_row
+                    break
+                row = self.table.page_directory[row.indirection]
+            value = row.columns[aggregate_column_index]
+            s += int(value[1].data[value[0]*8,(value[0]*8)+7])
+        return s
 
     
     """
