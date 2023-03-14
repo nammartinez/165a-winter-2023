@@ -46,12 +46,12 @@ class Query:
                 i.append(Page())
         for i in range(len(columns)):
             data_cols.append((i, self.table.pages[i][self.table.base_pages[-1]]))
-            self.table.pages[i][self.table.base_pages[-1]].write(0)
+            self.table.pages[i][self.table.base_pages[-1]].write(columns[i])
         base_record = Record(RID, columns[self.table.key], data_cols)
         base_record.schema_encoding = '0' * self.table.num_columns
         self.table.index.indices[self.table.key][columns[self.table.key]] = RID
         self.table.page_directory[RID] = base_record
-        return self.update(columns[self.table.key], columns)
+        return True
 
     
     """
@@ -64,7 +64,24 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select(self, search_key, search_key_index, projected_columns_index):
-        pass
+        RIDs = self.table.index.locate(search_key_index, search_key)
+        data = []
+        for RID in RIDs:
+            row = self.table.page_directory[RID]
+            columns = []
+            for i in range(self.table.num_columns):
+                if projected_columns_index[i] == 1:
+                    if row.schema_encoding[i] == '1':
+                        value = self.table.page_directory[row.indirection].columns[i]
+                        columns.append(int(value[1].data[value[0]*8,(value[0]*8)+7]))
+                    else:
+                        value = row.columns[i]
+                        columns.append(int(value[1].data[value[0]*8,(value[0]*8)+7]))
+            if row.schema_encoding[self.table.key] == '1':
+                data.append(Record(RID, self.table.page_directory[row.indirection].key, columns)
+            else:
+                data.append(Record(RID, row.key, columns)
+        return data
 
     
     """
@@ -78,7 +95,26 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select_version(self, search_key, search_key_index, projected_columns_index, relative_version):
-        pass
+        RIDs = self.table.index.locate(search_key_index, search_key)
+        data = []
+        for RID in RIDs:
+            base_row = self.table.page_directory[RID]
+            row = self.table.page_directory[base_row.indirection]
+            for i in range(relative_version):
+                if row.indirection == None:
+                    row = base_row
+                    break
+                row = self.table.page_directory[row.indirection]
+            columns = []
+            for i in range(self.table.num_columns):
+                if projected_columns_index[i] == 1:
+                    value = row.columns[i]
+                    columns.append(int(value[1].data[value[0]*8,(value[0]*8)+7]))
+            if row.schema_encoding[self.table.key] == '1':
+                data.append(Record(RID, self.table.page_directory[row.indirection].key, columns)
+            else:
+                data.append(Record(RID, row.key, columns)
+        return data
 
     
     """
@@ -112,7 +148,7 @@ class Query:
                             i.append(Page())
                 data_cols.append((i, self.table.pages[i][self.table.tail_pages[i][0]]))
                 self.table.pages[i][self.table.tail_pages[i][0]].write(columns[i])
-        tail_record = Record(RID, columns[self.table.key], data_cols)
+        tail_record = Record(RID, data_cols[self.table.key], data_cols)
         tail_record.schema_encoding = schema_encoding
         self.table.page_directory[self.table.index.indices[self.table.key][primary_key]].schema_encoding = schema_encoding
         self.table.page_directory[self.table.index.indices[self.table.key][primary_key]].indirection = RID
